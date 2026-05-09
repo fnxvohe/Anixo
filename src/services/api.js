@@ -62,12 +62,68 @@ export async function getAnigoStream(animeData, episodeNumber = 1, serverName = 
         return null;
     }
 
-    // Find the best match from results (Fuzzy Match)
+    // Find the best match from results (Fuzzy Match + Season Check)
     const mainTitle = (animeData.title?.english || animeData.title?.romaji || "").toLowerCase();
-    const bestMatch = results.find(r => 
-        r.title.toLowerCase().includes(mainTitle) || 
-        mainTitle.includes(r.title.toLowerCase())
-    ) || results[0];
+    
+    const getSeason = (str) => {
+      if (!str) return null;
+      const s1 = str.match(/season\s+(\d+)/i);
+      if (s1) return s1[1];
+      const s2 = str.match(/(\d+)(st|nd|rd|th)\s+season/i);
+      if (s2) return s2[1];
+      const s3 = str.match(/\s+(\d+)$/); 
+      if (s3) return s3[1];
+      return null;
+    };
+
+    const targetSeason = getSeason(mainTitle);
+    
+    let bestMatch = results[0];
+    let highestScore = -100;
+
+    results.forEach(result => {
+        const resultTitle = (result.title || "").toLowerCase();
+        let score = 0;
+        
+        // --- Strategy 1: Exact AniList ID Match (Highest Priority) ---
+        if (String(result.ani_id) === String(animeData.id)) {
+            score += 500; // Instant win
+        }
+
+        // --- Strategy 2: Word matching ---
+        const targetWords = mainTitle.split(/\s+/).filter(w => w.length > 2);
+        targetWords.forEach(word => {
+            if (resultTitle.includes(word)) score += 15;
+        });
+
+        // --- Strategy 3: Year Validation (Crucial for same-name anime) ---
+        const targetYear = animeData.seasonYear;
+        // Assuming result might have a year in title or a separate field if available
+        const resultYearMatch = result.title?.match(/\((\d{4})\)/) || result.title?.match(/\s(\d{4})$/);
+        if (targetYear && resultYearMatch) {
+            if (String(targetYear) === resultYearMatch[1]) score += 100;
+            else score -= 100; // Wrong year!
+        }
+
+        // --- Strategy 4: Season Check ---
+        const resSeason = getSeason(resultTitle);
+        if (targetSeason && resSeason) {
+            if (targetSeason === resSeason) score += 50;
+            else score -= 150;
+        }
+
+        // --- Strategy 5: Length Penalty ---
+        const lengthDiff = Math.abs(resultTitle.length - mainTitle.length);
+        score -= (lengthDiff * 3);
+
+        if (score > highestScore) {
+            highestScore = score;
+            bestMatch = result;
+        }
+        console.log(`[Anigo] Scored Result: "${result.title}" | Score: ${score} | AniID: ${result.ani_id}`);
+    });
+
+    console.log(`[Anigo] Final Best Match: "${bestMatch.title}" (Score: ${highestScore})`);
 
     console.log(`[Anigo] Selected Best Match: ${bestMatch.title} (ID: ${bestMatch.ani_id})`);
 

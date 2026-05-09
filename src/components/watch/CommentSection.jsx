@@ -478,33 +478,13 @@ export default function CustomCommentSection({ animeId, episode, animeTitle, rel
 
                 {/* MOBILE: Recommendations Section (Below Comments) */}
                 {recommendations.length > 0 && (
-                    <div className="mt-8 lg:hidden">
-                        <h3 className="text-[14px] font-medium text-white uppercase tracking-wider mb-4">Recommended for You</h3>
-                        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1">
-                            {recommendations.slice(0, 12).map((rec) => (
-                                <Link key={rec.id} to={`/watch/${rec.id}`} className="flex-shrink-0 w-[120px] group">
-                                    <div className="w-[120px] h-[170px] rounded-[4px] overflow-hidden border border-white/5 mb-2 relative">
-                                        <img
-                                            src={rec.coverImage?.extraLarge || rec.coverImage?.large}
-                                            alt={rec.title?.english || rec.title?.romaji}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            loading="lazy"
-                                        />
-                                        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/80 to-transparent" />
-                                        {rec.averageScore && (
-                                            <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-black/60 px-1.5 py-0.5 rounded-sm">
-                                                <Star size={9} className="text-yellow-500" fill="currentColor" />
-                                                <span className="text-[9px] text-white/80 font-normal">{(rec.averageScore / 10).toFixed(1)}</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <p className="text-[11px] text-white/70 font-normal line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                                        {rec.title?.english || rec.title?.romaji}
-                                    </p>
-                                    <p className="text-[9px] text-white/30 font-normal mt-0.5 uppercase">
-                                        {rec.format || "TV"} · {rec.episodes || "?"} eps
-                                    </p>
-                                </Link>
+                    <div className="mt-10 lg:hidden">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-[15px] font-medium text-white uppercase tracking-wider">Recommended</h3>
+                        </div>
+                        <div className="space-y-1">
+                            {recommendations.slice(0, 6).map((anime) => (
+                                <SidebarCard key={anime.id} anime={anime} />
                             ))}
                         </div>
                     </div>
@@ -512,27 +492,13 @@ export default function CustomCommentSection({ animeId, episode, animeTitle, rel
 
                 {/* MOBILE: Related Anime / You May Also Like */}
                 {relations.length > 0 && (
-                    <div className="mt-6 lg:hidden">
-                        <h3 className="text-[14px] font-medium text-white uppercase tracking-wider mb-4">You May Also Like</h3>
-                        <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-1 px-1">
-                            {relations.slice(0, 12).map((rel) => (
-                                <Link key={rel.id} to={`/watch/${rel.id}`} className="flex-shrink-0 w-[120px] group">
-                                    <div className="w-[120px] h-[170px] rounded-[4px] overflow-hidden border border-white/5 mb-2 relative">
-                                        <img
-                                            src={rel.coverImage?.extraLarge || rel.coverImage?.large}
-                                            alt={rel.title?.english || rel.title?.romaji}
-                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                            loading="lazy"
-                                        />
-                                        <div className="absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-black/80 to-transparent" />
-                                    </div>
-                                    <p className="text-[11px] text-white/70 font-normal line-clamp-2 leading-tight group-hover:text-red-500 transition-colors">
-                                        {rel.title?.english || rel.title?.romaji}
-                                    </p>
-                                    <p className="text-[9px] text-white/30 font-normal mt-0.5 uppercase">
-                                        {rel.format || "TV"} · {rel.episodes || "?"} eps
-                                    </p>
-                                </Link>
+                    <div className="mt-10 lg:hidden">
+                        <div className="flex items-center justify-between mb-6">
+                            <h3 className="text-[15px] font-medium text-white uppercase tracking-wider">Related</h3>
+                        </div>
+                        <div className="bg-[#0f0f0f] border border-white/5 p-1 rounded-[2px]">
+                            {relations.slice(0, 3).map((anime) => (
+                                <SidebarCard key={anime.id} anime={anime} />
                             ))}
                         </div>
                     </div>
