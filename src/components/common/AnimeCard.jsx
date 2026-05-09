@@ -53,9 +53,7 @@ export default function AnimeCard({ anime }) {
     releasedEpisodes = anime.episodes || 0;
   }
 
-  // For Anikai results, we often don't have total episodes, so showing "12/12" is misleading if it's airing.
-  // If it's Anikai and we only have one number, we'll treat it as current count.
-  const showTotal = !anime.isAnikai && totalEpisodes !== "?";
+  const showTotal = totalEpisodes !== "?";
   const format = anime.format || "TV";
 
   return (

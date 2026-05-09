@@ -147,6 +147,8 @@ const ArtPlayer = ({ src, type, poster, subtitles = [], onEnded, onTimeUpdate, o
             screenshot: true,
             setting: true,
             settings: customSettings,
+            autoHideCursor: false,
+            autoHideControl: true,
             loop: false,
             flip: true,
             playbackRate: true,

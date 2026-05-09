@@ -6,7 +6,6 @@ import {
   getNewReleases,
   getPopularThisSeason,
   getBrowseAnime,
-  getRecentDubs,
 } from "../services/api";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
@@ -52,47 +51,6 @@ export default function Home() {
     } catch (e) { console.warn("Cache write failed:", e); }
   };
 
-  const getStableDubPage = async (page) => {
-    const startIndex = (page - 1) * cardsPerPage;
-    const endIndex = startIndex + cardsPerPage;
-    const collected = [];
-    const seen = new Set();
-    let sourcePage = 1;
-    let guard = 0;
-
-    while (collected.length < endIndex && guard < 20) {
-      const dubRes = await getRecentDubs(sourcePage, cardsPerPage);
-      const media = dubRes.media || [];
-
-      media.forEach((anime) => {
-        const key = String(
-          anime.id ?? `${anime.title?.romaji || anime.title?.english || "unknown"}-${anime.episodes || ""}`
-        );
-        if (seen.has(key)) return;
-        seen.add(key);
-        collected.push(anime);
-      });
-
-      if (!dubRes.pageInfo?.hasNextPage) break;
-      sourcePage += 1;
-      guard += 1;
-    }
-
-    const pageMedia = collected.slice(startIndex, endIndex);
-    const hasNextDubPage = collected.length > endIndex || (sourcePage > 1 && guard < 20);
-    const dubLastPage = hasNextDubPage ? page + 1 : page;
-
-    return {
-      media: pageMedia,
-      pageInfo: {
-        total: collected.length,
-        currentPage: page,
-        lastPage: dubLastPage,
-        hasNextPage: hasNextDubPage,
-        perPage: cardsPerPage,
-      },
-    };
-  };
 
   const { data: trendingData, isLoading: loadingTrending } = useQuery({
     queryKey: ["trending"],
@@ -122,9 +80,7 @@ export default function Home() {
     queryKey: ["popularThisSeason", activeSeasonTab, seasonPage],
     queryFn: async () => {
       let res;
-      if (activeSeasonTab === "Dub") {
-        res = await getStableDubPage(seasonPage);
-      } else if (activeSeasonTab === "China") {
+      if (activeSeasonTab === "China") {
         const chinaRes = await getBrowseAnime({
           page: seasonPage,
           perPage: cardsPerPage,
@@ -217,7 +173,7 @@ export default function Home() {
           data={popularThisSeason}
           isLoading={loadingSeason}
           limit={cardsPerPage}
-          tabs={["All", "Sub", "Dub", "China"]}
+          tabs={["All", "Sub", "China"]}
           activeTab={activeSeasonTab}
           onTabChange={(tab) => {
             setActiveSeasonTab(tab);

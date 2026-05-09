@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { getBrowseAnime, getRecentDubs, getAnikaiGenres } from "../services/api";
+import { getBrowseAnime } from "../services/api";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import AnimeCard from "../components/common/AnimeCard";
@@ -15,13 +15,7 @@ export default function Browse() {
   const [openDropdown, setOpenDropdown] = useState(null);
   const [isLoaded, setIsLoaded] = useState(false);
 
-  const { data: dynamicGenresData } = useQuery({
-    queryKey: ["anikaiGenres"],
-    queryFn: getAnikaiGenres,
-    staleTime: 1000 * 60 * 60 * 24,
-  });
-
-  const displayGenres = dynamicGenresData?.length > 0 ? dynamicGenresData : ALL_GENRES;
+  const displayGenres = ALL_GENRES;
 
   // 1. Filter derivation from URL
   const filters = useMemo(() => {
@@ -91,7 +85,6 @@ export default function Browse() {
     }
   }, [setSearchParams]);
   const queryData = useMemo(() => {
-    const isAnikai = filters.include.length > 0 && !filters.search;
     const vars = {
       page: filters.page,
       perPage: filters.search ? 50 : 30,
@@ -121,67 +114,19 @@ export default function Browse() {
     if (filters.rating) vars.averageScore_greater = parseInt(filters.rating);
     if (filters.language.length > 0) vars.language = filters.language;
 
-    return { vars, isAnikai, lang: filters.language };
+    return { vars, lang: filters.language };
   }, [filters]);
 
   const { data: result = { media: [], pageInfo: { total: 0 } }, isLoading, isFetching, refetch } = useQuery({
     queryKey: ["browse", queryData],
     queryFn: async () => {
-      const { vars, isAnikai } = queryData;
+      const { vars } = queryData;
 
-      // Use the same Dub source as homepage when Dub language is selected, unless we are using Anikai which has native dub filtering
-      if (!isAnikai && filters.language.includes("DUB")) {
-        const cardsPerPage = 30;
-        const startIndex = (filters.page - 1) * cardsPerPage;
-        const endIndex = startIndex + cardsPerPage;
-        const collected = [];
-        const seen = new Set();
-        let sourcePage = 1;
-        let guard = 0;
-        let sourceHasNextPage = false;
-
-        // Build a stable paginated stream so each browse page can still render 30 cards.
-        while (collected.length < endIndex && guard < 20) {
-          const dubRes = await getRecentDubs(sourcePage, cardsPerPage);
-          const media = dubRes.media || [];
-          sourceHasNextPage = Boolean(dubRes.pageInfo?.hasNextPage);
-
-          media.forEach((anime) => {
-            const key = String(
-              anime.id ?? `${anime.title?.romaji || anime.title?.english || "unknown"}-${anime.episodes || ""}`
-            );
-            if (seen.has(key)) return;
-            seen.add(key);
-            collected.push({ ...anime, dub: true });
-          });
-
-          if (!sourceHasNextPage) break;
-          sourcePage += 1;
-          guard += 1;
-        }
-
-        const pageMedia = collected.slice(startIndex, endIndex);
-        const hasNextDubPage = collected.length > endIndex || sourceHasNextPage;
-        const dubLastPage = hasNextDubPage ? filters.page + 1 : filters.page;
-
-        return {
-          media: pageMedia,
-          pageInfo: {
-            total: collected.length,
-            currentPage: filters.page,
-            lastPage: dubLastPage,
-            hasNextPage: hasNextDubPage,
-            perPage: cardsPerPage,
-          },
-        };
-      }
 
       let res = await getBrowseAnime(vars);
 
       // SMART-DECORATE WITH DUB INFO (Title Heuristic Only — No API calls)
       const mediaWithDub = (res.media || []).map((anime) => {
-        // If Anikai already supplied the dub status directly from the HTML scraper, trust it instantly!
-        if (anime.isAnikai && anime.dub !== undefined) return anime;
 
         // Heuristic Check (Zero-cost, no backend call)
         const searchTitle = (anime.title?.english || "").toLowerCase();

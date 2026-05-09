@@ -493,97 +493,10 @@ export async function getPopularThisSeason(page = 1) {
   });
 }
 
-export async function getRecentDubs(page = 1) {
-  // Only cache page 1 for performance
-  if (page === 1) {
-    const cachedData = cache.get("recent_dubs_p1");
-    if (cachedData) return cachedData;
-  }
 
-  try {
-    const { data } = await smartRequest("get", "/api/python/recent-dub", {
-      params: { page }
-    });
 
-    if (page === 1 && data?.media?.length > 0) {
-      cache.set("recent_dubs_p1", data, CACHE_TTL.RECENT_DUBS);
-    }
-    return data;
-  } catch (err) {
-    console.error("Recent Dubs fetch failed:", err);
-    return { media: [], pageInfo: { hasNextPage: false } };
-  }
-}
 
-export async function resolveSlugToAnilist(slug) {
-  try {
-    const { data } = await smartRequest("get", `/api/python/resolve/${slug}`);
-    return data;
-  } catch (err) {
-    console.error("Slug resolution failed:", err.message);
-    return null;
-  }
-}
 
-export async function getAnikaiDetails(slug) {
-  if (!slug) return null;
-  try {
-    // If slug looks like a search title (no hyphens/special chars typical of slugs),
-    // search first to get the correct slug
-    const isLikelyTitle = !slug.includes('-') || slug.includes(' ');
-    if (isLikelyTitle) {
-      const { data: searchData } = await smartRequest("get", "/api/anikai/search", {
-        params: { keyword: slug }
-      });
-      const results = searchData?.results || [];
-      if (results.length > 0) {
-        // Use the first result's slug
-        const { data } = await smartRequest("get", `/api/anikai/info/${encodeURIComponent(results[0].slug)}`);
-        return data;
-      }
-      return null;
-    }
-
-    // Direct slug lookup
-    const { data } = await smartRequest("get", `/api/anikai/info/${encodeURIComponent(slug)}`);
-    return data;
-  } catch (err) {
-    if (err.response?.status === 404) {
-      console.warn(`[Anikai] Details not found for: ${slug}`);
-    } else {
-      console.error("Anikai details failed:", err.message);
-    }
-    return null;
-  }
-}
-
-export async function getAnikaiGenres() {
-  const cachedGenres = cache.get("anikai_genres");
-  if (cachedGenres) return cachedGenres;
-
-  try {
-    const { data } = await smartRequest("get", "/api/anikai/genres");
-    const genres = data?.genres || [];
-    if (genres.length > 0) {
-      cache.set("anikai_genres", genres, CACHE_TTL.GENRES);
-    }
-    return genres;
-  } catch (err) {
-    console.error("Failed to fetch genres from backend:", err.message);
-    return [];
-  }
-}
-
-export async function getAnikaiServers(epToken) {
-  if (!epToken) return [];
-  try {
-    const { data } = await smartRequest("get", `/api/anikai/servers/${epToken}`);
-    return data?.servers || [];
-  } catch (err) {
-    console.error("Failed to fetch servers from Anikai:", err.message);
-    return [];
-  }
-}
 
 const DETAIL_QUERY = `
 fragment RelationFields on Media {
@@ -717,20 +630,6 @@ export async function getAnimeDetails(id, isMal = false) {
   let finalId = id;
   let finalIsMal = isMal;
 
-  // BUG FIX: If ID is a slug (non-numeric), resolve it to an AniList ID first
-  if (id && isNaN(id) && !isMal) {
-    try {
-      console.log(`[Watch] Resolving slug to AniList ID: ${id}`);
-      // Try unified resolution first (handles Anikai slugs)
-      const resolutionData = await resolveSlugToAnilist(id);
-      if (resolutionData?.anilist_id) {
-        finalId = resolutionData.anilist_id;
-        console.log(`[Watch] Resolved slug ${id} -> AniList ID: ${finalId}`);
-      }
-    } catch (err) {
-      console.error("[Watch] Mapping resolution failed:", err);
-    }
-  }
 
   const variables = finalIsMal ? { idMal: finalId } : { id: finalId };
 
@@ -929,53 +828,6 @@ export async function getBrowseAnimeMAL(variables) {
   }
 }
 
-export async function getBrowseAnimeAnikai({ page = 1, sort = "TRENDING_DESC", genres = [], format_in = [], status, seasonYear, season, country, language } = {}) {
-  if (!genres.length) return { media: [], pageInfo: {} };
-
-  // We only fetch by the first genre for Anikai since it only supports single genre filtering via its ID easily
-  const { ANIKAI_GENRE_MAP } = await import('../constants/genres');
-  const genreId = ANIKAI_GENRE_MAP[genres[0]];
-  if (!genreId) return { media: [], pageInfo: {} };
-
-  // Map AniList sort strings to Anikai sort parameter
-  let anikaiSort = "updated_date";
-  const currentSort = sort[0] || "";
-
-  if (currentSort.includes("POPULARITY")) anikaiSort = "most_followed";
-  else if (currentSort.includes("SCORE")) anikaiSort = "score";
-  else if (currentSort.includes("START_DATE")) anikaiSort = "release_date";
-  // By default, frontend's TRENDING_DESC will map to 'updated_date' to match Anikai's default behavior
-
-  try {
-    // Bust overly aggressive browser caching (1 hour) using a 5-minute timestamp bucket
-    const cacheBuster = Math.floor(Date.now() / 300000);
-    const apiParams = { page, sort: anikaiSort, _t: cacheBuster };
-    if (format_in && format_in.length > 0) {
-      apiParams.formats = format_in.join(',');
-    }
-    if (status) apiParams.status = status;
-    if (seasonYear) apiParams.year = seasonYear;
-    if (season) apiParams.season = season;
-    if (country) apiParams.country = country;
-    if (language && language.length > 0) {
-      apiParams.language = language.join(',');
-    }
-
-    const { data } = await smartRequest("get", `/api/anikai/browse/${genreId}`, {
-      params: apiParams
-    });
-
-    // Inject the requested genre so that frontend client-side filtering doesn't strip the results
-    if (data && data.media) {
-      data.media = data.media.map(item => ({ ...item, genres: [genres[0]] }));
-    }
-
-    return data;
-  } catch (err) {
-    console.error("Anikai Browse API Error:", err);
-    return { media: [], pageInfo: {} };
-  }
-}
 
 export async function getEpisodeTitles(malId) {
   if (!malId) return [];

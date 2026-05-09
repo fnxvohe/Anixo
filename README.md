@@ -47,7 +47,7 @@ The system is split into three core layers designed for maximum scalability and 
 ```text
 anixo/
 ├── api/                        # 🚀 Unified Backend (Python & Node.js)
-│   ├── index.py                # 🐍 Python Scraper (Anikai, Jikan Proxy)
+│   ├── index.py                # 🐍 Python API (Jikan/AniList Proxy)
 │   ├── user.js                 # 🟢 Node.js Auth & Watchlist Gateway
 │   ├── comments.json           # 💬 Local Database (Comments)
 │   └── stream_cache.json       # ⚡ Scraper Performance Cache
@@ -97,7 +97,7 @@ anixo/
 - **Broadcast Timing:** Live-synced broadcast schedules displayed directly in the Watch page.
 
 ### 🎬 Elite Streaming Experience
-- **Multi-Server Resolution:** Seamlessly switches between Anikai and other providers.
+- **Multi-Server Resolution:** Seamlessly switches between high-quality streaming providers like AllAnime.
 - **Smart Metadata:** Episode thumbnails and descriptions are intelligently pulled from Kitsu/MAL for a "Netflix-style" browse experience.
 - **Native HLS Player:** High-performance playback with Auto-Skip (Intro/Outro) support.
 
@@ -116,18 +116,10 @@ anixo/
 #### 🚀 Example Discovery Flow
 | Order | Action | Endpoint | Purpose |
 | :--- | :--- | :--- | :--- |
-| **0** | **Search** | `GET /api/anikai/search?keyword=...` | Find the anime **slug** or **id**. |
-| **1** | **Info** | `GET /api/anikai/info/<slug>` | Extract metadata and episode count. |
-| **2** | **Episodes** | `GET /api/anikai/episodes/<id>` | Retrieve individual episode tokens. |
-| **3** | **Stream** | `GET /api/anikai/stream/<token>` | Resolve high-quality **m3u8** links. |
+| **0** | **Proxy** | `POST /api/anilist/proxy` | GraphQL Proxy with **Jikan Fallback**. |
+| **1** | **Jikan** | `GET /api/jikan/proxy?path=...` | Direct REST proxy for Jikan v4 API. |
+| **2** | **Mapping** | `GET /api/malsync/<mal_id>` | MAL to AniList/Streaming mapping. |
 
-#### 🛠️ Metadata & Core Services
-| Action | Endpoint | Purpose |
-| :--- | :--- | :--- |
-| **Proxy** | `POST /api/anilist/proxy` | GraphQL Proxy with **Jikan Fallback**. |
-| **Resolve** | `GET /api/python/resolve/<slug>` | Map string slugs to AniList IDs. |
-| **Mapping** | `GET /api/malsync/<mal_id>` | MAL to AniList/Streaming mapping. |
-| **Jikan** | `GET /api/jikan/proxy?path=...` | Direct REST proxy for Jikan v4 API. |
 
 #### 💬 Community & Comments
 | Action | Endpoint | Purpose |

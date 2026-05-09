@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { getAnimeDetails, getEpisodeTitles, getJikanAnimeDetails, getMalSyncMapping, getAnikaiServers, getMiruroStream, PYTHON_API, ALLANIME_API } from "../services/api";
+import { getAnimeDetails, getEpisodeTitles, getJikanAnimeDetails, getMalSyncMapping, getMiruroStream, PYTHON_API, ALLANIME_API } from "../services/api";
 import { useLanguage } from "../context/LanguageContext";
 import { useLoading } from "../context/LoadingContext";
 import Navbar from "../components/layout/Navbar";
@@ -67,16 +67,14 @@ export default function Watch() {
   const [episodeLayout, setEpisodeLayout] = useState("list"); // "grid" | "list"
   const [playerLang, setPlayerLang] = useState("sub");
   const [activeServer, setActiveServer] = useState(2);
-  const [availableServers, setAvailableServers] = useState([]);
-  const [selectedServerId, setSelectedServerId] = useState(null);
+
   const [allanimeId, setAllanimeId] = useState(null);
   const [videoQuality, setVideoQuality] = useState(() => {
     try { return localStorage.getItem("videoQuality") || "best"; } catch { return "best"; }
   });
   const [availableQualities, setAvailableQualities] = useState([]);
 
-  // Watchlist integration (extracted to custom hook) — called after useQuery below
-  const { user, setGlobalProgress, globalSettings } = useAuth();
+  const { user, setGlobalProgress, globalSettings, globalProgress } = useAuth();
 
   // Reset Allanime ID on navigation
   useEffect(() => {
@@ -116,9 +114,6 @@ export default function Watch() {
     }
     return () => document.body.classList.remove("focus-mode");
   }, [isFocusMode]);
-
-  // Performance: In-memory caches
-  const streamCache = useRef(new Map());
 
 
   // Modal states
@@ -191,8 +186,7 @@ export default function Watch() {
     setTimeout(() => {
       setActiveEpisode(1);
       setEpisodePage(0);
-      setSelectedServerId(null);
-      setAvailableServers([]);
+
     }, 0);
   }, [id]);
 
@@ -210,8 +204,6 @@ export default function Watch() {
   const [iframeLoaded, setIframeLoaded] = useState(false);
   const [miruroIframeTag, setMiruroIframeTag] = useState("");
 
-  const [anikaiEpisodes, setAnikaiEpisodes] = useState([]);
-  const [anikaiDetails, setAnikaiDetails] = useState(null);
   const [fetchError, setFetchError] = useState(null);
 
   // Sync global page loader with iframe loading
@@ -253,6 +245,44 @@ export default function Watch() {
 
   // AniSkip hook (must be after anime is declared)
   const { skipTimes, setSkipTimes } = useAniSkip(id, anime, activeEpisode, isMal);
+
+  // --- INSTANT SAVE TO CONTINUE WATCHING ---
+  const instantSaveRef = useRef({});
+
+  useEffect(() => {
+    if (!user || !anime || !activeEpisode || !id) return;
+
+    const key = `${id}-${activeEpisode}`;
+    if (instantSaveRef.current[key]) return; // Already saved this episode
+    
+    // Wait for the actual anime data
+    if (!anime.title) return;
+
+    instantSaveRef.current[key] = true;
+
+    // Find if we already have progress for this anime
+    const existing = globalProgress.find(p => p.animeId === String(id));
+    
+    // If the episode is the same as the one we are resuming, preserve currentTime
+    const isSameEpisode = existing && existing.episode === activeEpisode;
+    const currTime = isSameEpisode ? existing.currentTime : 0;
+    const duration = isSameEpisode ? existing.duration : null;
+
+    const coverImg = anime?.coverImage?.large || anime?.coverImage?.extraLarge;
+
+    // Trigger instant save in the background
+    updateProgress(String(id), activeEpisode, currTime, duration, getTitle(anime.title), coverImg)
+      .then(res => {
+        if (res.success && res.progress) {
+          setGlobalProgress(prev => {
+            const filtered = prev.filter(p => p.animeId !== String(id));
+            return [res.progress, ...filtered].slice(0, 100);
+          });
+        }
+      })
+      .catch(err => console.error("Failed to init instant progress:", err));
+
+  }, [user, anime, activeEpisode, id, globalProgress, getTitle, setGlobalProgress]);
 
   // --- DYNAMIC SEO & STRUCTURED DATA ---
   useEffect(() => {
@@ -661,85 +691,6 @@ export default function Watch() {
   }, [anime, malEpisodes, activeEpisode]);
 
 
-  useEffect(() => {
-    // --- BRIDGE: Logic for resolving titles ---
-    // Search Romaji first, fallback to English if no results
-    const romajiTitle = anime?.title?.romaji;
-    const englishTitle = anime?.title?.english;
-    const nativeTitle = anime?.title?.native;
-    
-    if (!romajiTitle && !englishTitle && !nativeTitle) {
-      setTimeout(() => {
-        setAnikaiEpisodes([]);
-        setAnikaiDetails(null);
-      }, 0);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      try {
-        let results = [];
-
-        // Step 1: Try Romaji first (most accurate for Anikai)
-        const searchQuery = romajiTitle || englishTitle || nativeTitle;
-        console.log(`[Anikai Bridge] Searching Romaji: "${searchQuery}"`);
-        const searchResp = await axios.get(`${PYTHON_API}/api/anikai/search`, {
-          params: { keyword: searchQuery },
-        });
-        if (cancelled) return;
-        results = searchResp.data?.results || [];
-
-        // Step 2: If Romaji fails, fallback to English
-        if (results.length === 0 && englishTitle && englishTitle !== searchQuery) {
-          console.log(`[Anikai Bridge] Romaji failed. Trying English: "${englishTitle}"`);
-          const fallbackResp = await axios.get(`${PYTHON_API}/api/anikai/search`, {
-            params: { keyword: englishTitle },
-          });
-          if (cancelled) return;
-          results = fallbackResp.data?.results || [];
-        }
-
-        if (results.length === 0) {
-          setAnikaiEpisodes([]);
-          return;
-        }
-
-        // --- SIMPLE APPROACH ---
-        // Trust the search API's ranking. Pick the first result directly.
-        const best = results[0];
-        console.log(`[Anikai Bridge] Picked: "${best.title}" (slug: ${best.slug})`);
-
-        // Fetch info to get ani_id and episodes
-        const infoResp = await axios.get(`${PYTHON_API}/api/anikai/info/${best.slug}`);
-        if (cancelled) return;
-        
-        if (!infoResp.data?.success || !infoResp.data?.ani_id) {
-          setAnikaiEpisodes([]);
-          setAnikaiDetails(null);
-          return;
-        }
-
-        setAnikaiDetails(infoResp.data);
-        const aniId = infoResp.data.ani_id;
-        const epsResp = await axios.get(`${PYTHON_API}/api/anikai/episodes/${aniId}`);
-        if (cancelled) return;
-        if (epsResp.data?.success && Array.isArray(epsResp.data.episodes)) {
-          setAnikaiEpisodes(epsResp.data.episodes);
-          console.log("[Anikai] Final Result: %s (%s) episodes=%d", best.title, best.slug, epsResp.data.episodes.length);
-        } else {
-          setAnikaiEpisodes([]);
-        }
-      } catch (err) {
-        console.error("Anikai deep resolve error:", err);
-        if (!cancelled) { setAnikaiEpisodes([]); setAnikaiDetails(null); }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [anime, id, playerLang]);
-
-
-
-
 
   const episodesList = useMemo(() => {
     if (!anime) return [];
@@ -767,10 +718,6 @@ export default function Watch() {
       count = Math.max(count, safeCount);
     }
 
-    // 4. Check Anikai (Python Backend) Count
-    if (anikaiEpisodes && anikaiEpisodes.length > 0) {
-      count = Math.max(count, anikaiEpisodes.length);
-    }
 
     // 5. Final fallback for airing shows if AniList has no airing info but has streaming metadata
     if (!count && anime.status === 'RELEASING' && anime.streamingEpisodes && anime.streamingEpisodes.length > 0) {
@@ -782,7 +729,7 @@ export default function Watch() {
     if (!count) count = 1;
 
     return Array.from({ length: count }, (_, i) => i + 1);
-  }, [anime, malEpisodes, allanimeSubCount, anikaiEpisodes]);
+  }, [anime, malEpisodes, allanimeSubCount]);
 
   const filteredEpisodes = useMemo(() => {
     if (!episodeSearchQuery) return episodesList;
@@ -818,29 +765,10 @@ export default function Watch() {
         if (isAlreadyInList) {
           return prev.map(s => ({
             ...s,
-            isActive: (s.id === anime.id || s.slug === (anikaiDetails?.slug || anime.slug))
+            isActive: (s.id === anime.id || s.slug === anime.slug)
           }));
         }
 
-        // Priority: Anikai Seasons (more accurate for the scraper)
-        if (anikaiDetails?.seasons && anikaiDetails.seasons.length > 0) {
-          return anikaiDetails.seasons.map(s => ({
-            id: s.slug,
-            slug: s.slug,
-            title: {
-              english: s.title,
-              romaji: s.title
-            },
-            coverImage: {
-              large: s.poster || anime.coverImage?.large,
-              medium: s.poster || anime.coverImage?.medium
-            },
-            episodes: parseInt(s.episodes) || 0,
-            format: "TV",
-            isActive: s.isActive,
-            relationToMain: s.isActive ? 'CURRENT' : 'ALTERNATIVE'
-          }));
-        }
 
         // Fallback: AniList Relations
         const items = [{
@@ -915,7 +843,7 @@ export default function Watch() {
         return uniqueItems;
       });
     }, 0);
-  }, [anime, anikaiDetails, getTitle]);
+  }, [anime, getTitle]);
 
 
 
@@ -1039,76 +967,9 @@ export default function Watch() {
     return () => window.removeEventListener("message", handleMessage);
   }, [goNextEpisode, skipTimes, activeEpisode, user, id, anime, getTitle, setGlobalProgress]); // Removed autoNext from deps, using autoNextRef instead for stability
 
-  // ── Performance: Prefetch Next Episode ──
-  const prefetchNextEpisode = useCallback(async (nextEpNum) => {
-    if (!anikaiEpisodes.length || (activeServer !== 1 && activeServer !== 5)) return;
 
-    const nextEp = anikaiEpisodes.find(e => String(e.number) === String(nextEpNum));
-    if (!nextEp || streamCache.current.has(`${nextEp.id}-sub`)) return;
 
-    try {
-      // Use background fetch to avoid blocking main thread
-      axios.get(`${PYTHON_API}/api/anikai/stream/${nextEp.id}`, {
-        params: { lang: 'sub' }
-      }).then(resp => {
-        if (resp.data?.success && Array.isArray(resp.data.sources) && resp.data.sources.length > 0) {
-          streamCache.current.set(`${nextEp.id}-sub`, resp.data);
-          console.info(`[Prefetch] Cached Ep ${nextEpNum} (SUB)`);
-        }
-      }).catch(err => {
-        console.warn(`[Prefetch] Failed for Ep ${nextEpNum}:`, err);
-      });
-    } catch (err) {
-      console.error(`[Prefetch] Error for Ep ${nextEpNum}:`, err);
-    }
-  }, [anikaiEpisodes, activeServer]);
 
-  // 🔄 Reset selectedServerId when switching between different servers 🔄
-  useEffect(() => {
-    setTimeout(() => {
-      setSelectedServerId(null);
-      setAvailableServers([]);
-    }, 0);
-  }, [activeServer]);
-
-  // 🚀 Auto-select best sub-server when availableServers or activeServer changes 🚀
-  useEffect(() => {
-    if (!availableServers.length) return;
-
-    if (activeServer === 1) {
-      const s1 = availableServers.find(s => {
-        const name = s.name.toLowerCase();
-        const isMega = (name.includes('mega') || name.includes('server 1') || name.includes('.nl')) && !name.includes('.live');
-        const sLang = (s.lang || "sub").toLowerCase();
-        const isMatch = playerLang === 'dub' ? sLang === 'dub' : ["sub", "softsub", "hardsub", "raw"].includes(sLang);
-        return isMega && isMatch;
-      });
-      if (s1) {
-        console.log(`[AutoSelect] S1 match found: ${s1.name} (${s1.link_id})`);
-        if (s1.link_id !== selectedServerId) {
-          setTimeout(() => setSelectedServerId(s1.link_id), 0);
-        }
-      }
-    } else if (activeServer === 5) {
-      const s5 = availableServers.find(s => {
-        const name = s.name.toLowerCase();
-        const isFilemoon = (name.includes('filemoon') || name.includes('server 5') || name.includes('moon') || name.includes('.live')) && !name.includes('.nl');
-        const sLang = (s.lang || "sub").toLowerCase();
-        const isMatch = playerLang === "sub"
-          ? ["sub", "softsub", "hardsub", "raw"].includes(sLang)
-          : sLang === "dub";
-        return isFilemoon && isMatch;
-      });
-      if (s5) {
-        console.log(`[AutoSelect] S5 match found: ${s5.name} (${s5.link_id})`);
-        if (s5.link_id !== selectedServerId) {
-          setTimeout(() => setSelectedServerId(s5.link_id), 0);
-        }
-      } else {
-        console.warn(`[AutoSelect] S5 (Filemoon/Live) not found. Available:`, availableServers.map(s => s.name));
-      }
-    }
-  }, [availableServers, activeServer, playerLang, selectedServerId]);
 
   // ── Stream Logic: Fetch iframe URL for the active episode ──
   useEffect(() => {
@@ -1119,59 +980,6 @@ export default function Watch() {
 
       console.info(`[Player] Fetching stream: Episode ${activeEpisode}, Lang: ${playerLang}, Server: ${activeServer}`);
 
-      // --- OPTIMIZATION: Check Cache First (Only for Anikai Servers) ---
-      if (activeServer === 1 || activeServer === 5) {
-        const ep = anikaiEpisodes.find(e => String(e?.number) === String(activeEpisode));
-        if (ep) {
-          const token = ep.id;
-
-          // Fetch available servers for this episode
-          try {
-            const servers = await getAnikaiServers(token);
-            if (!cancelled) {
-              setTimeout(() => {
-                setAvailableServers(prev => {
-                  if (JSON.stringify(prev) === JSON.stringify(servers)) return prev;
-                  return servers;
-                });
-                // If current selectedServerId is not in the new list, reset it
-                if (selectedServerId && !servers.find(s => s.link_id === selectedServerId)) {
-                  setSelectedServerId(null);
-                }
-              }, 0);
-            }
-          } catch (err) {
-            console.warn("[Servers] Failed to fetch servers:", err);
-          }
-
-          const cacheKey = `${token}-${playerLang}-${selectedServerId || 'auto'}`;
-
-          // CRITICAL: If we are on S1 or S5, and servers are loaded, WAIT for the auto-selector 
-          // to set selectedServerId before proceeding to fetch the actual stream.
-          if ((activeServer === 1 || activeServer === 5) && availableServers.length > 0 && !selectedServerId) {
-            console.info(`[Player] S${activeServer} waiting for auto-selection...`);
-            setStreamLoading(true);
-            return;
-          }
-
-          if (streamCache.current.has(cacheKey)) {
-            const cachedData = streamCache.current.get(cacheKey);
-            const url = cachedData.iframe_url || (cachedData.sources?.[0]?.url);
-            // Verify cache matches requested language
-            if (url && cachedData.lang === playerLang) {
-              const finalUrl = `${url}#lang=${playerLang}`;
-              setStreamData(cachedData);
-              setStreamUrl(finalUrl);
-              setStreamLoading(false);
-              setFetchError(null);
-              console.info(`[Player] ⚡ Instant Cache Hit for Ep ${activeEpisode}`);
-              // Trigger prefetch for next one anyway
-              if (activeEpisode < episodesList.length) prefetchNextEpisode(activeEpisode + 1);
-              return;
-            }
-          }
-        }
-      }
 
       setStreamLoading(true);
       setPageLoading(true);
@@ -1184,90 +992,8 @@ export default function Watch() {
       try {
         let url = "";
 
-        // --- SERVER 1: ANIKAI INTEGRATION (Optimized with Caching & Parallel Fetching) ---
-        if (activeServer === 1) {
-          if (!anikaiEpisodes || anikaiEpisodes.length === 0) {
-            console.info("[Player] Anikai episodes not loaded yet, waiting...");
-            return;
-          }
-
-          const ep = anikaiEpisodes.find(e => String(e?.number) === String(activeEpisode));
-          if (!ep) {
-            console.error(`[Player] Episode ${activeEpisode} not found. Available:`, anikaiEpisodes.map(e => e.number));
-            setFetchError(`Episode ${activeEpisode} not found on Anikai.`);
-            setStreamLoading(false);
-            return;
-          }
-
-          const token = ep.id;
-          const cacheKey = `${token}-${playerLang}-${selectedServerId || 'auto'}`;
-
-          // Re-check cache inside try just in case, though we checked above
-          if (streamCache.current.has(cacheKey)) {
-            const cachedData = streamCache.current.get(cacheKey);
-            setStreamData(cachedData);
-            url = cachedData.iframe_url || (cachedData.sources?.[0]?.url);
-          } else {
-            // 2. Parallel Fetch: Request both SUB and DUB to populate cache and speed up toggle
-            // But only await the requested language to show UI as fast as possible
-            const fetchLang = (lang) => axios.get(`${PYTHON_API}/api/anikai/stream/${token}`, {
-              params: {
-                lang,
-                strict: true,
-                server_id: selectedServerId
-              },
-              timeout: 15000
-            }).then(res => res.data).catch(() => null);
-
-            // Start both in parallel
-            const subPromise = fetchLang('sub');
-            const dubPromise = fetchLang('dub');
-
-            // Wait for requested language with a fallback to avoid crash
-            const targetData = await (playerLang === 'sub' ? subPromise : dubPromise);
-
-            if (cancelled) return;
-
-            // Double check: if selectedServerId changed while we were fetching, abort to avoid race
-            if (selectedServerId && targetData && targetData.server_id && String(targetData.server_id) !== String(selectedServerId)) {
-              console.warn("[Player] Race condition detected: server_id mismatch. Aborting fetch.");
-              return;
-            }
-
-            if (!targetData) {
-              setFetchError(`Backend did not respond for ${playerLang.toUpperCase()}.`);
-              setStreamLoading(false);
-              return;
-            }
-
-            const hasContent = (Array.isArray(targetData.sources) && targetData.sources.length > 0) || targetData.iframe_url;
-
-            if (targetData.success && hasContent) {
-              streamCache.current.set(cacheKey, targetData);
-              setStreamData(targetData);
-              url = targetData.iframe_url || (targetData.sources?.[0]?.url);
-
-              // Background: Populate other language cache
-              const otherData = await (playerLang === 'sub' ? dubPromise : subPromise);
-              const hasOtherContent = otherData?.success && ((Array.isArray(otherData.sources) && otherData.sources.length > 0) || otherData.iframe_url);
-              if (hasOtherContent) {
-                streamCache.current.set(`${token}-${playerLang === 'sub' ? 'dub' : 'sub'}`, otherData);
-              }
-            } else {
-              setFetchError(`No ${playerLang.toUpperCase()} sources found for this episode.`);
-              setStreamLoading(false);
-              return;
-            }
-          }
-
-          // 3. Trigger Prefetch for Next Episode
-          if (activeEpisode < episodesList.length) {
-            prefetchNextEpisode(activeEpisode + 1);
-          }
-        }
-
         // --- SERVER 3: MEGAPLAY INTEGRATION (MAL) ---
-        else if (activeServer === 3) {
+        if (activeServer === 3) {
           if (anime?.idMal) {
             const langParam = playerLang.toLowerCase() === 'dub' ? 'dub' : 'sub';
             url = `${import.meta.env.VITE_MEGAPLAY_URL || 'https://megaplay.buzz'}/stream/mal/${anime.idMal}/${activeEpisode}/${langParam}`;
@@ -1282,32 +1008,6 @@ export default function Watch() {
           const langParam = playerLang.toLowerCase() === 'dub' ? 'dub' : 'sub';
           url = `${import.meta.env.VITE_MEGAPLAY_URL || 'https://megaplay.buzz'}/stream/ani/${id}/${activeEpisode}/${langParam}`;
           setStreamData({ server_name: "SERVER 4 (AniList)", lang: langParam });
-        }
-
-        // --- SERVER 5: ANIKAI FILEMOON ---
-        else if (activeServer === 5) {
-          if (!anikaiEpisodes || anikaiEpisodes.length === 0) return;
-          const ep = anikaiEpisodes.find(e => String(e?.number) === String(activeEpisode));
-          if (!ep) return;
-
-          const token = ep.id;
-          const cacheKey = `${token}-${playerLang}-${selectedServerId || 'auto'}`;
-
-          if (streamCache.current.has(cacheKey)) {
-            const cachedData = streamCache.current.get(cacheKey);
-            setStreamData(cachedData);
-            url = cachedData.iframe_url || (cachedData.sources?.[0]?.url);
-          } else {
-            const res = await axios.get(`${PYTHON_API}/api/anikai/stream/${token}`, {
-              params: { lang: playerLang, strict: true, server_id: selectedServerId },
-              timeout: 15000
-            });
-            if (res.data?.success) {
-              streamCache.current.set(cacheKey, res.data);
-              setStreamData(res.data);
-              url = res.data.iframe_url || (res.data.sources?.[0]?.url);
-            }
-          }
         }
 
         // --- SERVER 6: MIRURO INTEGRATION ---
@@ -1386,7 +1086,7 @@ export default function Watch() {
     fetchStream();
 
     return () => { cancelled = true; };
-  }, [id, anime?.id, anime?.idMal, activeEpisode, playerLang, activeServer, selectedServerId, anikaiEpisodes, allanimeId, autoPlay, videoQuality, episodesList.length, prefetchNextEpisode, setPageLoading]);
+  }, [id, anime?.id, anime?.idMal, activeEpisode, playerLang, activeServer, allanimeId, autoPlay, videoQuality, episodesList.length, setPageLoading]);
 
   const handleReport = () => {
     setShowReportModal(true);
