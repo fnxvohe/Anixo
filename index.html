@@ -53,14 +53,67 @@
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "AniXo",
+      "alternateName": "Anixo Online",
       "url": "https://anixo.online/",
       "potentialAction": {
         "@type": "SearchAction",
-        "target": "https://anixo.online/search?q={search_term_string}",
+        "target": "https://anixo.online/browse?search={search_term_string}",
         "query-input": "required name=search_term_string"
       },
       "description": "Watch free anime online in HD quality with sub and dub. No ads guaranteed.",
       "genre": ["Anime", "Animation", "Entertainment"]
+    }
+  </script>
+
+  <!-- Sitelinks Navigation Schema -->
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "ItemList",
+      "itemListElement": [
+        {
+          "@type": "SiteNavigationElement",
+          "position": 1,
+          "name": "Movies",
+          "description": "Watch anime movies online for free in HD quality.",
+          "url": "https://anixo.online/browse?format=MOVIE"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 2,
+          "name": "TV Series",
+          "description": "Stream popular anime TV series with sub and dub.",
+          "url": "https://anixo.online/browse?format=TV"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 3,
+          "name": "New Releases",
+          "description": "Watch the latest and newest anime releases.",
+          "url": "https://anixo.online/browse?sort=START_DATE_DESC"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 4,
+          "name": "Popular Anime",
+          "description": "Watch the most popular anime of all time.",
+          "url": "https://anixo.online/browse?sort=POPULARITY_DESC"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 5,
+          "name": "Top Rated",
+          "description": "Discover the highest rated anime series and movies.",
+          "url": "https://anixo.online/browse?sort=SCORE_DESC"
+        },
+        {
+          "@type": "SiteNavigationElement",
+          "position": 6,
+          "name": "Schedule",
+          "description": "Check the weekly airing schedule for ongoing anime.",
+          "url": "https://anixo.online/schedule"
+        }
+      ]
     }
   </script>
 
