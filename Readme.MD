@@ -19,13 +19,13 @@
 ## 📸 Interface Preview
 
 <p align="center">
-  <img src="screenshots/home.png" alt="AniXo Home" width="100%" />
+  
   <br>
 
 </p>
 
 <p align="center">
-  <img src="screenshots/browse.png" alt="AniXo Browse" width="100%" />
+  
   <br>
   <i>Advanced Filtering & Discovery System</i>
 </p>
