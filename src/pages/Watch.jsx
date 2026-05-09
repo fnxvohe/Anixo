@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useParams, Link, useLocation } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
-import { getAnimeDetails, getEpisodeTitles, getJikanAnimeDetails, getMalSyncMapping, getAnikaiServers, getMiruroStream, getAnigoStream, ANIGO_HF_API, PYTHON_API, ALLANIME_API } from "../services/api";
+import { getAnimeDetails, getEpisodeTitles, getJikanAnimeDetails, getMalSyncMapping, getAnikaiServers, getMiruroStream, PYTHON_API, ALLANIME_API } from "../services/api";
 import { useLanguage } from "../context/LanguageContext";
 import { useLoading } from "../context/LoadingContext";
 import Navbar from "../components/layout/Navbar";
@@ -662,7 +662,7 @@ export default function Watch() {
 
 
   useEffect(() => {
-    // --- BRIDGE: Same logic as AnigoScraper test project ---
+    // --- BRIDGE: Logic for resolving titles ---
     // Search Romaji first, fallback to English if no results
     const romajiTitle = anime?.title?.romaji;
     const englishTitle = anime?.title?.english;
@@ -704,7 +704,7 @@ export default function Watch() {
           return;
         }
 
-        // --- SIMPLE APPROACH (same as AnigoScraper test project) ---
+        // --- SIMPLE APPROACH ---
         // Trust the search API's ranking. Pick the first result directly.
         const best = results[0];
         console.log(`[Anikai Bridge] Picked: "${best.title}" (slug: ${best.slug})`);
