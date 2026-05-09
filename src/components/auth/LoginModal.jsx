@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { login, register } from "../../services/authService";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { Check, X } from "lucide-react";
+import { Check, X, Eye, EyeOff } from "lucide-react";
 
 export default function LoginModal({ isOpen, onClose }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -12,6 +12,8 @@ export default function LoginModal({ isOpen, onClose }) {
   const [username, setUsername] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
   const isLocal = typeof window !== 'undefined' && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
   const [cfSuccess, setCfSuccess] = useState(isLocal);
@@ -79,6 +81,12 @@ export default function LoginModal({ isOpen, onClose }) {
           onClose();
         } else {
           setError(res.message || "Login failed");
+          // Reset captcha for next attempt
+          if (window.turnstile && turnstileRef.current) {
+            window.turnstile.reset(turnstileRef.current);
+            setCfToken("");
+            setCfSuccess(isLocal);
+          }
         }
       } else {
         const res = await register(username, email, password, cfToken);
@@ -87,9 +95,22 @@ export default function LoginModal({ isOpen, onClose }) {
           onClose();
         } else {
           setError(res.message || "Registration failed");
+          // Reset captcha for next attempt
+          if (window.turnstile && turnstileRef.current) {
+            window.turnstile.reset(turnstileRef.current);
+            setCfToken("");
+            setCfSuccess(isLocal);
+          }
         }
       }
     } catch (err) {
+      // Reset captcha on network/server errors too
+      if (window.turnstile && turnstileRef.current) {
+        window.turnstile.reset(turnstileRef.current);
+        setCfToken("");
+        setCfSuccess(isLocal);
+      }
+      
       if (err.code === 'ERR_NETWORK') {
         setError("Network Error: Is the backend running on port 5001?");
       } else {
@@ -156,27 +177,47 @@ export default function LoginModal({ isOpen, onClose }) {
             />
 
             {/* Password Input */}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              autoComplete="new-password"
-              className="w-full bg-[#111111] px-3.5 py-2.5 text-[13px] text-white/80 placeholder-white/30 outline-none focus:bg-[#151515] transition-colors"
-              required
-            />
+            <div className="relative group">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Password"
+                autoComplete="new-password"
+                className="w-full bg-[#111111] px-3.5 py-2.5 text-[13px] text-white/80 placeholder-white/30 outline-none focus:bg-[#151515] transition-colors pr-10"
+                required
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                tabIndex="-1"
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
 
             {/* Repeat Password (Only for Signup) */}
             {!isLogin && (
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Repeat your password"
-                autoComplete="new-password"
-                className="w-full bg-[#111111] px-3.5 py-2.5 text-[13px] text-white/80 placeholder-white/30 outline-none focus:bg-[#151515] transition-colors"
-                required
-              />
+              <div className="relative group">
+                <input
+                  type={showConfirmPassword ? "text" : "password"}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Repeat your password"
+                  autoComplete="new-password"
+                  className="w-full bg-[#111111] px-3.5 py-2.5 text-[13px] text-white/80 placeholder-white/30 outline-none focus:bg-[#151515] transition-colors pr-10"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors"
+                  tabIndex="-1"
+                >
+                  {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             )}
 
             {/* Real Cloudflare Turnstile */}
