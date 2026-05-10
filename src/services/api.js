@@ -6,7 +6,7 @@ export const PYTHON_API = (typeof window !== "undefined" && window.location.host
 
 export const PYTHON_API_BACKUP = import.meta.env.VITE_PYTHON_API_BACKUP || "";
 
-export const ALLANIME_API = import.meta.env.VITE_ALLANIME_API || "https://allanime-api.rk18109ry.workers.dev";
+export const ALLANIME_API = import.meta.env.VITE_ALLANIME_API || "https://allanime-api.anijikan.workers.dev";
 
 export const MIRURO_API = import.meta.env.VITE_MIRURO_API || "https://miruro-hono-worker.miruro-api.workers.dev";
 // --- MIRURO (Server 6) --- Fetches stream iframe from Miruro Cloudflare Worker
