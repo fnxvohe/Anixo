@@ -4,7 +4,7 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { useAuth } from "../hooks/useAuth";
 import { getWatchlist, removeFromWatchlist } from "../services/watchlistService";
-import { User, Clock, Heart, Bell, Download, Settings, Search, Filter, ArrowDownUp, ChevronDown, Check } from "lucide-react";
+import { User, Clock, Heart, Bell, Download, Settings, ChevronDown, Check, Play, Tv } from "lucide-react";
 import { addToWatchlist } from "../services/watchlistService";
 
 export default function Watchlist() {
@@ -47,7 +47,10 @@ export default function Watchlist() {
   }, [user, navigate]);
 
   const handleRemove = async (animeId, e) => {
-    e.preventDefault(); // Prevent navigating to anime details
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     const res = await removeFromWatchlist(animeId);
     if (res.success) {
       setWatchlist(res.watchlist);
@@ -72,9 +75,16 @@ export default function Watchlist() {
     setOpenStatusPicker(null);
   };
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => setOpenStatusPicker(null);
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, []);
+
   if (isLoading) {
     return (
-      <div className="min-h-screen text-white">
+      <div className="min-h-screen text-white bg-[#0a0a0a]">
         <Navbar />
         <div className="flex items-center justify-center h-[50vh]">
           <div className="w-8 h-8 border-4 border-red-600 border-t-transparent rounded-full animate-spin"></div>
@@ -83,11 +93,13 @@ export default function Watchlist() {
     );
   }
 
+  const filteredWatchlist = watchlist.filter(item => activeTab === "All" || item.status === activeTab);
+
   return (
-    <div className="min-h-screen text-white flex flex-col font-sans selection:bg-red-500/30">
+    <div className="min-h-screen text-white bg-[#0a0a0a] flex flex-col font-sans selection:bg-red-500/30">
       <Navbar />
 
-      <div className="w-full pt-[80px] px-4 md:px-8 pb-12 max-w-[1200px] mx-auto flex-1">
+      <div className="w-full pt-[80px] px-4 md:px-8 pb-12 max-w-[1600px] mx-auto flex-1">
         
         {/* Compact Navigation Tabs */}
         <div className="flex flex-wrap justify-center gap-2 md:gap-3 mb-8 w-full max-w-4xl mx-auto">
@@ -115,15 +127,15 @@ export default function Watchlist() {
         </div>
 
         {/* Sub Navigation Tabs */}
-        <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+        <div className="flex flex-wrap items-center justify-center gap-2 mb-10">
           {subTabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`text-[11px] font-bold uppercase tracking-wider px-5 py-2 rounded-xl transition-all duration-300 border ${
+              className={`text-[11px] font-bold uppercase tracking-wider px-4 py-2 rounded-md transition-colors ${
                 activeTab === tab 
-                ? "bg-white text-black border-white" 
-                : "bg-white/[0.03] text-white/30 border-white/5 hover:text-white hover:bg-white/[0.08]"
+                ? "bg-white text-black border border-white" 
+                : "bg-[#161616] text-white/40 border border-white/5 hover:bg-[#1f1f1f] hover:text-white/80"
               }`}
             >
               {tab}
@@ -131,7 +143,7 @@ export default function Watchlist() {
           ))}
         </div>
 
-        {watchlist.filter(item => activeTab === "All" || item.status === activeTab).length === 0 ? (
+        {filteredWatchlist.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 bg-[#111] border border-white/5 rounded-2xl shadow-xl relative overflow-hidden max-w-3xl mx-auto">
             <div className="relative w-20 h-20 mb-6 rounded-full bg-white/5 flex items-center justify-center border border-white/10">
               <Heart size={32} className="text-white/20" strokeWidth={1.5} />
@@ -147,84 +159,91 @@ export default function Watchlist() {
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-            {watchlist
-              .filter(item => activeTab === "All" || item.status === activeTab)
-              .map((item) => {
-                const statusColors = {
-                  "Watching": "bg-red-500/10 text-red-500 border-red-500/20",
-                  "Completed": "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
-                  "On-Hold": "bg-amber-500/10 text-amber-500 border-amber-500/20",
-                  "Dropped": "bg-white/5 text-white/40 border-white/10",
-                  "Planning": "bg-blue-500/10 text-blue-500 border-blue-500/20"
-                };
-                const statusStyle = statusColors[item.status] || "bg-white/5 text-white/40 border-white/10";
+          <div className="grid grid-cols-1 md:grid-cols-2 2xl:grid-cols-3 gap-x-4 gap-y-4">
+            {filteredWatchlist.map((item) => {
+              const timeQuery = item.currentTime ? `&t=${item.currentTime}` : "";
+              const watchUrl = `/watch/${item.animeId}?ep=${item.progress || 1}${timeQuery}`;
 
-                // BUILD SMART URL: Resume from saved episode/timestamp
-                const watchUrl = `/watch/${item.animeId}?ep=${item.progress || 1}${item.currentTime ? `&t=${item.currentTime}` : ""}`;
-
-                return (
-                  <Link to={watchUrl} key={item.animeId} className="group relative flex flex-col gap-3">
-                    <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[#181818] border border-white/5 shadow-lg group-hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-1">
-                      {item.coverImage ? (
-                        <img src={item.coverImage} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-white/10 text-[10px] font-black uppercase tracking-widest">No Cover</div>
-                      )}
-                      
-                      {/* Status Picker - Top Left */}
-                      <div className="absolute top-2 left-2 z-30">
-                         <button 
-                           onClick={(e) => {
-                             e.preventDefault();
-                             e.stopPropagation();
-                             setOpenStatusPicker(openStatusPicker === item.animeId ? null : item.animeId);
-                           }}
-                           className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-[0.15em] px-2 py-1 rounded-lg shadow-xl backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95 ${statusStyle}`}
-                         >
-                           {item.status || "PLANNING"}
-                           <ChevronDown size={8} strokeWidth={4} className={`transition-transform duration-300 ${openStatusPicker === item.animeId ? "rotate-180" : ""}`} />
-                         </button>
-
-                         {/* Mini Picker Menu */}
-                         {openStatusPicker === item.animeId && (
-                           <div className="absolute top-full left-0 mt-1.5 bg-[#0d0d0d]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden min-w-[120px] animate-in slide-in-from-top-2 duration-200">
-                             {subTabs.filter(t => t !== "All").map((tab) => (
-                               <button
-                                 key={tab}
-                                 onClick={(e) => handleUpdateStatus(item, tab, e)}
-                                 className={`w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors border-b border-white/[0.03] last:border-0 ${
-                                   item.status === tab ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/5 hover:text-white"
-                                 }`}
-                               >
-                                 {tab}
-                                 {item.status === tab && <Check size={10} strokeWidth={3} className="text-red-500" />}
-                               </button>
-                             ))}
-                           </div>
-                         )}
-                      </div>
-
-                      {/* Remove Button */}
-                      <button
-                        onClick={(e) => handleRemove(item.animeId, e)}
-                        className="absolute top-2 right-2 bg-black/80 backdrop-blur-md text-white hover:text-red-500 hover:bg-black p-2.5 rounded-2xl shadow-2xl z-20 transition-all opacity-100 md:opacity-0 md:group-hover:opacity-100 border border-white/5 active:scale-90"
-                        title="Remove from Watchlist"
-                      >
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-
-                      {/* Overlay on hover */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+              return (
+                <div key={item.animeId} className="group relative flex bg-[#16171B] hover:bg-[#1C1E23] rounded-[4px] transition-colors duration-300 h-[100px] sm:h-[120px]">
+                  
+                  {/* Poster */}
+                  <Link to={watchUrl} className="shrink-0 w-[70px] sm:w-[85px] h-full relative overflow-hidden rounded-l-[4px]">
+                    {item.coverImage ? (
+                      <img src={item.coverImage} alt={item.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-[#111] text-white/10 text-[10px] font-black uppercase tracking-widest text-center">No Cover</div>
+                    )}
+                    {/* Play Overlay */}
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                      <Play size={20} className="text-white ml-1 shadow-lg" fill="currentColor" />
                     </div>
-                    <h3 className="text-[13px] font-medium text-white/80 group-hover:text-white transition-colors line-clamp-2 leading-snug px-1 text-center w-full">
-                      {item.title}
-                    </h3>
                   </Link>
-                );
-              })}
+
+                  {/* Content */}
+                  <div className="flex flex-col justify-between p-3 sm:p-4 flex-1 min-w-0 relative">
+                    
+                    {/* Top Row: Title & Dropdown */}
+                    <div className="flex justify-between items-start gap-4">
+                      <Link to={watchUrl} className="font-medium text-[13px] sm:text-[14px] text-white/90 group-hover:text-red-500 transition-colors line-clamp-2 pr-2 leading-snug tracking-wide">
+                        {item.title}
+                      </Link>
+                      
+                      {/* Status Dropdown */}
+                      <div 
+                        className="relative shrink-0" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setOpenStatusPicker(openStatusPicker === item.animeId ? null : item.animeId);
+                        }}
+                      >
+                        <button className="flex items-center gap-1.5 text-[11px] text-white/40 hover:text-white transition-colors cursor-pointer capitalize">
+                          {item.status || "Planning"}
+                          <ChevronDown size={14} strokeWidth={2.5} className={`transition-transform duration-300 ${openStatusPicker === item.animeId ? "rotate-180" : ""}`} />
+                        </button>
+
+                        {/* Dropdown Menu */}
+                        {openStatusPicker === item.animeId && (
+                          <div className="absolute top-full right-0 mt-2 bg-[#1a1c21] border border-white/10 rounded-md shadow-[0_15px_40px_rgba(0,0,0,0.6)] overflow-hidden min-w-[140px] z-50 animate-in fade-in zoom-in-95 duration-200">
+                            {subTabs.filter(t => t !== "All").map((tab) => (
+                              <button
+                                key={tab}
+                                onClick={(e) => handleUpdateStatus(item, tab, e)}
+                                className={`w-full flex items-center justify-between px-3 py-2.5 text-[11px] transition-colors ${
+                                  item.status === tab ? "bg-white/5 text-white font-bold" : "text-white/60 hover:bg-white/5 hover:text-white"
+                                }`}
+                              >
+                                {tab}
+                                {item.status === tab && <Check size={14} className="text-white" />}
+                              </button>
+                            ))}
+                            {/* Remove Option */}
+                            <div className="border-t border-white/5 mt-1 pt-1">
+                              <button
+                                onClick={(e) => { handleRemove(item.animeId, e); setOpenStatusPicker(null); }}
+                                className="w-full text-left px-3 py-2.5 text-[11px] text-red-500 hover:bg-red-500/10 transition-colors"
+                              >
+                                Remove from List
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Bottom Row: Meta Data */}
+                    <div className="flex items-center gap-4 text-[10px] sm:text-[11px] font-bold tracking-wider text-white/40">
+                      <div className="flex items-center gap-1.5 bg-white/5 px-2 py-1 rounded">
+                        <Tv size={12} className="opacity-70" />
+                        <span>EP {item.progress || 1}</span>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
