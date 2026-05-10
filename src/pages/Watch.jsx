@@ -181,12 +181,14 @@ export default function Watch() {
     }
   }, [globalSettings]);
 
-  // Reset active episode and page when navigating to a different anime/season
+  // Reset or set active episode when navigating to a different anime
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const targetEp = parseInt(params.get("ep")) || 1;
+    
     setTimeout(() => {
-      setActiveEpisode(1);
+      setActiveEpisode(targetEp);
       setEpisodePage(0);
-
     }, 0);
   }, [id]);
 

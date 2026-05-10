@@ -56,7 +56,14 @@ export default function AnimeCard({ anime }) {
   const showTotal = totalEpisodes !== "?";
   const format = anime.format || "TV";
 
-  const cardUrl = `/watch/${anime.id}${anime.isMAL ? "?mal=true" : "?"}${anime.isProgress ? `&ep=${anime.episode}&t=${anime.currentTime}` : ""}`;
+  const queryParams = new URLSearchParams();
+  if (anime.isMAL) queryParams.set("mal", "true");
+  if (anime.isProgress) {
+    queryParams.set("ep", anime.episode || 1);
+    if (anime.currentTime) queryParams.set("t", anime.currentTime);
+  }
+  const queryString = queryParams.toString();
+  const cardUrl = `/watch/${anime.id}${queryString ? `?${queryString}` : ""}`;
 
   return (
     <Link

@@ -160,8 +160,11 @@ export default function Watchlist() {
                 };
                 const statusStyle = statusColors[item.status] || "bg-white/5 text-white/40 border-white/10";
 
+                // BUILD SMART URL: Resume from saved episode/timestamp
+                const watchUrl = `/watch/${item.animeId}?ep=${item.progress || 1}${item.currentTime ? `&t=${item.currentTime}` : ""}`;
+
                 return (
-                  <Link to={`/watch/${item.animeId}`} key={item.animeId} className="group relative flex flex-col gap-3">
+                  <Link to={watchUrl} key={item.animeId} className="group relative flex flex-col gap-3">
                     <div className="relative aspect-[2/3] rounded-2xl overflow-hidden bg-[#181818] border border-white/5 shadow-lg group-hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-1">
                       {item.coverImage ? (
                         <img src={item.coverImage} alt={item.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" />
