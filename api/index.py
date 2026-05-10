@@ -953,5 +953,10 @@ if __name__ == "__main__":
     log.info(banner)
     log.info("HttpClient ready — 1 engine loaded")
     log.info("Engines: Jikan")
-    log.info("Server starting on port 5000...")
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    
+    # Hugging Face Spaces always uses port 7860
+    port = int(os.environ.get("PORT", 7860))
+    log.info(f"Server starting on Hugging Face port {port}...")
+    
+    # Run with debug=False for production deployment on HF
+    app.run(host="0.0.0.0", port=port, debug=False)

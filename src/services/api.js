@@ -1,8 +1,6 @@
 import axios from "axios";
 
-export const PYTHON_API = (typeof window !== "undefined" && window.location.hostname === "localhost")
-  ? "http://localhost:5000"
-  : (import.meta.env.VITE_PYTHON_API || "https://anixo-backend-kb1y.onrender.com");
+export const PYTHON_API = import.meta.env.VITE_PYTHON_API || "https://ritesh0997-index.hf.space";
 
 export const PYTHON_API_BACKUP = import.meta.env.VITE_PYTHON_API_BACKUP || "";
 
