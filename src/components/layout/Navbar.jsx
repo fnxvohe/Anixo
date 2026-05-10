@@ -51,14 +51,15 @@ export default function Navbar() {
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
-    if (params.get("login") === "true" && !showLoginModal) {
-      // Using setTimeout to avoid synchronous setState warning
+    if (params.get("login") === "true" && !showLoginModal && !user) {
       const timer = setTimeout(() => {
         setShowLoginModal(true);
+        // Clear the query param so it doesn't trigger again
+        navigate(location.pathname, { replace: true });
       }, 0);
       return () => clearTimeout(timer);
     }
-  }, [location.search, showLoginModal]);
+  }, [location.search, showLoginModal, user, navigate, location.pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
