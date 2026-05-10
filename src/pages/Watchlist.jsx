@@ -4,7 +4,8 @@ import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
 import { useAuth } from "../hooks/useAuth";
 import { getWatchlist, removeFromWatchlist } from "../services/watchlistService";
-import { User, Clock, Heart, Bell, Download, Settings, Search, Filter, ArrowDownUp, ChevronDown } from "lucide-react";
+import { User, Clock, Heart, Bell, Download, Settings, Search, Filter, ArrowDownUp, ChevronDown, Check } from "lucide-react";
+import { addToWatchlist } from "../services/watchlistService";
 
 export default function Watchlist() {
   const { user } = useAuth();
@@ -14,6 +15,8 @@ export default function Watchlist() {
   const location = useLocation();
 
   const [activeTab, setActiveTab] = useState("All");
+  const [openStatusPicker, setOpenStatusPicker] = useState(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const navItems = [
     { id: "profile", label: "Profile", icon: User, path: "/profile" },
@@ -49,6 +52,24 @@ export default function Watchlist() {
     if (res.success) {
       setWatchlist(res.watchlist);
     }
+  };
+
+  const handleUpdateStatus = async (item, newStatus, e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (isUpdating || item.status === newStatus) {
+      setOpenStatusPicker(null);
+      return;
+    }
+
+    setIsUpdating(true);
+    const res = await addToWatchlist(item.animeId, item.title, item.coverImage, newStatus);
+    if (res.success) {
+      setWatchlist(res.watchlist);
+    }
+    setIsUpdating(false);
+    setOpenStatusPicker(null);
   };
 
   if (isLoading) {
@@ -131,13 +152,13 @@ export default function Watchlist() {
               .filter(item => activeTab === "All" || item.status === activeTab)
               .map((item) => {
                 const statusColors = {
-                  "Watching": "bg-red-600 text-white",
-                  "Completed": "bg-emerald-500 text-white",
-                  "On-Hold": "bg-amber-500 text-white",
-                  "Dropped": "bg-zinc-600 text-white",
-                  "Planning": "bg-blue-600 text-white"
+                  "Watching": "bg-red-500/10 text-red-500 border-red-500/20",
+                  "Completed": "bg-emerald-500/10 text-emerald-500 border-emerald-500/20",
+                  "On-Hold": "bg-amber-500/10 text-amber-500 border-amber-500/20",
+                  "Dropped": "bg-white/5 text-white/40 border-white/10",
+                  "Planning": "bg-blue-500/10 text-blue-500 border-blue-500/20"
                 };
-                const statusStyle = statusColors[item.status] || "bg-red-600 text-white";
+                const statusStyle = statusColors[item.status] || "bg-white/5 text-white/40 border-white/10";
 
                 return (
                   <Link to={`/watch/${item.animeId}`} key={item.animeId} className="group relative flex flex-col gap-3">
@@ -148,11 +169,37 @@ export default function Watchlist() {
                         <div className="w-full h-full flex items-center justify-center text-white/10 text-[10px] font-black uppercase tracking-widest">No Cover</div>
                       )}
                       
-                      {/* Status Tag - Top Left */}
-                      <div className="absolute top-2 left-2 z-20">
-                         <span className={`text-[8px] font-black uppercase tracking-[0.15em] px-2 py-1 rounded-lg shadow-xl backdrop-blur-md border border-white/10 ${statusStyle}`}>
+                      {/* Status Picker - Top Left */}
+                      <div className="absolute top-2 left-2 z-30">
+                         <button 
+                           onClick={(e) => {
+                             e.preventDefault();
+                             e.stopPropagation();
+                             setOpenStatusPicker(openStatusPicker === item.animeId ? null : item.animeId);
+                           }}
+                           className={`flex items-center gap-1 text-[8px] font-black uppercase tracking-[0.15em] px-2 py-1 rounded-lg shadow-xl backdrop-blur-md border border-white/10 transition-all hover:scale-105 active:scale-95 ${statusStyle}`}
+                         >
                            {item.status || "PLANNING"}
-                         </span>
+                           <ChevronDown size={8} strokeWidth={4} className={`transition-transform duration-300 ${openStatusPicker === item.animeId ? "rotate-180" : ""}`} />
+                         </button>
+
+                         {/* Mini Picker Menu */}
+                         {openStatusPicker === item.animeId && (
+                           <div className="absolute top-full left-0 mt-1.5 bg-[#0d0d0d]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-[0_10px_30px_rgba(0,0,0,0.5)] overflow-hidden min-w-[120px] animate-in slide-in-from-top-2 duration-200">
+                             {subTabs.filter(t => t !== "All").map((tab) => (
+                               <button
+                                 key={tab}
+                                 onClick={(e) => handleUpdateStatus(item, tab, e)}
+                                 className={`w-full flex items-center justify-between px-3 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-colors border-b border-white/[0.03] last:border-0 ${
+                                   item.status === tab ? "bg-white/10 text-white" : "text-white/40 hover:bg-white/5 hover:text-white"
+                                 }`}
+                               >
+                                 {tab}
+                                 {item.status === tab && <Check size={10} strokeWidth={3} className="text-red-500" />}
+                               </button>
+                             ))}
+                           </div>
+                         )}
                       </div>
 
                       {/* Remove Button */}
