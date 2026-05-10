@@ -98,170 +98,87 @@ export default function Settings() {
         <div className="max-w-[700px] mx-auto animate-in fade-in slide-in-from-bottom-4 duration-700">
           <form onSubmit={handleSubmit} className="bg-[#111] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
             
-            <div className="p-8 space-y-10">
+            <div className="p-6 md:p-10 space-y-12">
               
-              {/* 1. External Sync (AniList) - CLEAN MINIMALIST DESIGN */}
-              <div className="bg-[#181818] rounded-2xl border border-white/5 overflow-hidden">
-                <div className="px-6 py-4 border-b border-white/5 bg-white/[0.02] flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Shield size={14} className="text-red-600" />
-                    <h3 className="text-[11px] font-black uppercase tracking-[0.25em] text-white/40">Account Synchronization</h3>
+              {/* 1. Sync Section - Simplified */}
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6 pb-10 border-b border-white/5">
+                <div className="flex items-center gap-5">
+                  <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center shrink-0">
+                    <img 
+                      src="https://anilist.co/img/icons/icon.svg" 
+                      alt="AL" 
+                      className={`w-7 h-7 ${user?.anilist?.username ? 'opacity-100' : 'opacity-20 grayscale'}`} 
+                    />
                   </div>
-                  {user?.anilist?.username && (
-                    <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 border border-green-500/20">
-                      <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                      <span className="text-[9px] font-black uppercase tracking-widest text-green-500">Live</span>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 md:gap-8 text-center md:text-left">
-                  <div className="flex flex-col md:flex-row items-center gap-5 md:gap-6">
-                    <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border transition-colors duration-300 ${user?.anilist?.username ? 'bg-[#02A9FF]/10 border-[#02A9FF]/20' : 'bg-white/5 border-white/10'}`}>
-                      <img 
-                        src="https://anilist.co/img/icons/icon.svg" 
-                        alt="AniList" 
-                        className={`w-8 h-8 ${user?.anilist?.username ? 'brightness-110' : 'opacity-20 grayscale'}`} 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <h4 className="text-[16px] font-bold text-white tracking-tight">
-                        {user?.anilist?.username ? `Synced as ${user.anilist.username}` : 'AniList Connection'}
-                      </h4>
-                      <p className="text-[11px] font-medium text-white/30 leading-relaxed max-w-[350px] mx-auto md:mx-0">
-                        {user?.anilist?.username 
-                          ? `Your account is linked. All watch progress will be mirrored to your AniList profile.`
-                          : 'Connect your AniList account to track progress, scores, and status automatically.'
-                        }
-                      </p>
-                    </div>
+                  <div>
+                    <h4 className="text-[15px] font-bold text-white">
+                      {user?.anilist?.username ? `Connected as ${user.anilist.username}` : 'AniList Sync'}
+                    </h4>
+                    <p className="text-[11px] font-medium text-white/30">
+                      Sync your progress and library automatically.
+                    </p>
                   </div>
-                  
-                  {user?.anilist?.username ? (
-                    <div className="flex flex-col md:flex-row gap-3">
-                      <button 
-                        type="button"
-                        onClick={() => setShowConfirmModal(true)}
-                        className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600/10 hover:border-red-600/30 hover:text-red-500 transition-all active:scale-95 shrink-0"
-                      >
-                        Disconnect
-                      </button>
-                    </div>
-                  ) : (
-                    <button 
-                      type="button"
-                      onClick={() => window.location.href = getAnilistAuthUrl()}
-                      className="w-full md:w-auto px-8 py-3.5 rounded-xl bg-[#02A9FF] text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#0288d1] transition-all active:scale-95 shrink-0 shadow-none"
-                    >
-                      Connect
-                    </button>
-                  )}
                 </div>
+                
+                {user?.anilist?.username ? (
+                  <button 
+                    type="button"
+                    onClick={() => setShowConfirmModal(true)}
+                    className="text-[11px] font-bold text-red-500 hover:text-red-400 transition-colors px-4 py-2 bg-red-500/5 rounded-lg border border-red-500/10"
+                  >
+                    Disconnect
+                  </button>
+                ) : (
+                  <button 
+                    type="button"
+                    onClick={() => window.location.href = getAnilistAuthUrl()}
+                    className="bg-[#02A9FF] text-white text-[11px] font-bold px-6 py-2.5 rounded-lg transition-all active:scale-95"
+                  >
+                    Connect
+                  </button>
+                )}
               </div>
 
-              {/* 2. Title Language */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-1">
-                <div className="space-y-1">
-                  <h3 className="text-[14px] font-black uppercase tracking-tight text-white">Title language</h3>
-                  <p className="text-[11px] font-bold text-white/20 uppercase tracking-widest">Anime display preference</p>
+              {/* 2. Title Language - Simplified Row */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h3 className="text-[14px] font-bold text-white">Title Language</h3>
+                  <p className="text-[11px] text-white/30">How anime names are displayed.</p>
                 </div>
-                <div className="flex items-center gap-6 bg-white/[0.02] p-3 rounded-2xl border border-white/5">
+                <div className="flex bg-white/5 p-1 rounded-xl border border-white/5">
                   {['EN', 'JP'].map((lang) => (
-                    <label key={lang} className="flex items-center gap-3 cursor-pointer group">
-                      <div className="relative flex items-center justify-center">
-                        <input 
-                          type="radio" 
-                          name="titleLanguage" 
-                          checked={formData.titleLanguage === lang} 
-                          onChange={() => setFormData({...formData, titleLanguage: lang})}
-                          className="peer appearance-none w-4 h-4 rounded-full border border-white/20 checked:border-red-600 transition-all"
-                        />
-                        <div className="absolute w-2 h-2 rounded-full bg-red-600 scale-0 peer-checked:scale-100 transition-transform" />
-                      </div>
-                      <span className={`text-[12px] font-black uppercase tracking-widest transition-colors ${formData.titleLanguage === lang ? 'text-white' : 'text-white/20'}`}>
-                        {lang === 'EN' ? 'English' : 'Japanese'}
-                      </span>
-                    </label>
+                    <button
+                      key={lang}
+                      type="button"
+                      onClick={() => setFormData({...formData, titleLanguage: lang})}
+                      className={`px-6 py-2 rounded-lg text-[11px] font-bold transition-all ${formData.titleLanguage === lang ? 'bg-red-600 text-white shadow-lg' : 'text-white/30 hover:text-white/60'}`}
+                    >
+                      {lang === 'EN' ? 'English' : 'Japanese'}
+                    </button>
                   ))}
                 </div>
               </div>
 
-              {/* 3. Video Language */}
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 p-1">
-                <div className="space-y-1">
-                  <h3 className="text-[14px] font-black uppercase tracking-tight text-white">Video language</h3>
-                  <p className="text-[11px] font-bold text-white/20 uppercase tracking-widest">Default player source</p>
-                </div>
-                <div className="grid grid-cols-2 gap-x-6 gap-y-3 bg-white/[0.02] p-4 rounded-2xl border border-white/5">
-                  {['Any', 'Hard Sub', 'Soft Sub', 'Dub'].map((lang) => (
-                    <label key={lang} className="flex items-center gap-3 cursor-pointer">
-                      <div className="relative flex items-center justify-center">
-                        <input 
-                          type="radio" 
-                          name="videoLanguage" 
-                          checked={formData.videoLanguage === lang} 
-                          onChange={() => setFormData({...formData, videoLanguage: lang})}
-                          className="peer appearance-none w-4 h-4 rounded-full border border-white/20 checked:border-red-600 transition-all"
-                        />
-                        <div className="absolute w-2 h-2 rounded-full bg-red-600 scale-0 peer-checked:scale-100 transition-transform" />
-                      </div>
-                      <span className={`text-[11px] font-black uppercase tracking-widest transition-colors ${formData.videoLanguage === lang ? 'text-white' : 'text-white/20'}`}>{lang}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* 4. Skip & Bookmarks */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="text-[12px] font-black uppercase tracking-tight text-white">Skip Seconds</h3>
-                    <p className="text-[10px] font-bold text-white/10 uppercase tracking-widest">Forward/Backward</p>
+              {/* 3. Player Options - Simplified List */}
+              <div className="space-y-6 pt-2">
+                <div className="flex items-center justify-between group">
+                  <span className="text-[13px] font-medium text-white/60 group-hover:text-white transition-colors">Auto-play next episode</span>
+                  <div 
+                    onClick={() => setFormData({...formData, autoNext: !formData.autoNext})}
+                    className={`w-10 h-5 rounded-full relative cursor-pointer transition-all duration-300 ${formData.autoNext ? 'bg-red-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300 ${formData.autoNext ? 'left-6' : 'left-1'}`} />
                   </div>
-                  <input 
-                    type="number" 
-                    value={formData.skipSeconds}
-                    onChange={(e) => setFormData({...formData, skipSeconds: parseInt(e.target.value) || 0})}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm font-black text-white focus:border-red-600/50 outline-none transition-all"
-                  />
                 </div>
 
-                <div className="bg-white/[0.02] p-5 rounded-2xl border border-white/5 space-y-4">
-                  <div className="space-y-1">
-                    <h3 className="text-[12px] font-black uppercase tracking-tight text-white">Grid Count</h3>
-                    <p className="text-[10px] font-bold text-white/10 uppercase tracking-widest">Items per page</p>
+                <div className="flex items-center justify-between group">
+                  <span className="text-[13px] font-medium text-white/60 group-hover:text-white transition-colors">Auto-start video</span>
+                  <div 
+                    onClick={() => setFormData({...formData, autoPlay: !formData.autoPlay})}
+                    className={`w-10 h-5 rounded-full relative cursor-pointer transition-all duration-300 ${formData.autoPlay ? 'bg-red-600' : 'bg-white/10'}`}
+                  >
+                    <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all duration-300 ${formData.autoPlay ? 'left-6' : 'left-1'}`} />
                   </div>
-                  <input 
-                    type="number" 
-                    value={formData.bookmarksPerPage}
-                    onChange={(e) => setFormData({...formData, bookmarksPerPage: parseInt(e.target.value) || 20})}
-                    className="w-full bg-white/[0.03] border border-white/10 rounded-xl px-4 py-2.5 text-sm font-black text-white focus:border-red-600/50 outline-none transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* 5. Player Options */}
-              <div className="bg-white/[0.01] p-6 rounded-2xl border border-white/5 space-y-4">
-                <h3 className="text-[11px] font-black uppercase tracking-[0.2em] text-white/20">Playback Engine</h3>
-                <div className="flex flex-col gap-4">
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <span className="text-[12px] font-bold text-white/50 group-hover:text-white transition-colors">Auto-play next episode</span>
-                    <input 
-                      type="checkbox" 
-                      checked={formData.autoNext} 
-                      onChange={(e) => setFormData({...formData, autoNext: e.target.checked})}
-                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-red-600 focus:ring-red-600/50"
-                    />
-                  </label>
-                  <label className="flex items-center justify-between cursor-pointer group">
-                    <span className="text-[12px] font-bold text-white/50 group-hover:text-white transition-colors">Auto-start video</span>
-                    <input 
-                      type="checkbox" 
-                      checked={formData.autoPlay} 
-                      onChange={(e) => setFormData({...formData, autoPlay: e.target.checked})}
-                      className="w-4 h-4 rounded border-white/20 bg-white/5 text-red-600 focus:ring-red-600/50"
-                    />
-                  </label>
                 </div>
               </div>
 
