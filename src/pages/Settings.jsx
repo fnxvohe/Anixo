@@ -141,17 +141,17 @@ export default function Settings() {
                     <button 
                       type="button"
                       onClick={handleDisconnect}
-                      className="w-full md:w-auto px-8 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-red-600 hover:border-red-600 transition-all active:scale-95 shrink-0"
+                      className="w-full md:w-auto px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600 hover:border-red-600 transition-all active:scale-95 shrink-0"
                     >
-                      Disconnect Account
+                      Disconnect
                     </button>
                   ) : (
                     <button 
                       type="button"
                       onClick={() => window.location.href = getAnilistAuthUrl()}
-                      className="w-full md:w-auto px-10 py-4 rounded-xl bg-[#02A9FF] text-white text-[11px] font-black uppercase tracking-[0.2em] hover:bg-[#0288d1] transition-all active:scale-95 shrink-0 shadow-none"
+                      className="w-full md:w-auto px-8 py-3.5 rounded-xl bg-[#02A9FF] text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-[#0288d1] transition-all active:scale-95 shrink-0 shadow-none"
                     >
-                      Connect Now
+                      Connect
                     </button>
                   )}
                 </div>
