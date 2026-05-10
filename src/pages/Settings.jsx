@@ -32,6 +32,7 @@ export default function Settings() {
 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -46,12 +47,11 @@ export default function Settings() {
   };
 
   const handleDisconnect = async () => {
-    if (window.confirm("Are you sure you want to disconnect your AniList account?")) {
-      const res = await disconnectAnilist();
-      if (res.success) {
-        window.location.reload(); // Refresh to update user state
-      }
+    const res = await disconnectAnilist();
+    if (res.success) {
+      window.location.reload(); // Refresh to update user state
     }
+    setShowConfirmModal(false);
   };
 
   const navItems = [
@@ -138,13 +138,15 @@ export default function Settings() {
                   </div>
                   
                   {user?.anilist?.username ? (
-                    <button 
-                      type="button"
-                      onClick={handleDisconnect}
-                      className="w-full md:w-auto px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600 hover:border-red-600 transition-all active:scale-95 shrink-0"
-                    >
-                      Disconnect
-                    </button>
+                    <div className="flex flex-col md:flex-row gap-3">
+                      <button 
+                        type="button"
+                        onClick={() => setShowConfirmModal(true)}
+                        className="px-6 py-3 rounded-xl bg-white/5 border border-white/10 text-white/50 text-[10px] font-black uppercase tracking-[0.2em] hover:bg-red-600/10 hover:border-red-600/30 hover:text-red-500 transition-all active:scale-95 shrink-0"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   ) : (
                     <button 
                       type="button"
@@ -286,6 +288,38 @@ export default function Settings() {
           </form>
         </div>
       </div>
+
+      {/* Simple Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center px-4">
+          <div 
+            className="absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-opacity"
+            onClick={() => setShowConfirmModal(false)}
+          />
+          <div className="relative bg-[#111] border border-white/5 rounded-2xl p-6 max-w-[320px] w-full shadow-2xl">
+            <h3 className="text-[16px] font-bold text-white mb-2">Disconnect AniList?</h3>
+            <p className="text-white/40 text-[12px] mb-6 leading-relaxed">
+              Your watch progress will no longer be synced to your AniList profile.
+            </p>
+            <div className="flex gap-3">
+              <button 
+                type="button"
+                onClick={() => setShowConfirmModal(false)}
+                className="flex-1 py-2.5 rounded-lg bg-white/5 text-white/50 text-[11px] font-bold hover:bg-white/10 transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                type="button"
+                onClick={handleDisconnect}
+                className="flex-1 py-2.5 rounded-lg bg-red-600/90 text-white text-[11px] font-bold hover:bg-red-600 transition-all"
+              >
+                Disconnect
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

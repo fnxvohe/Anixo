@@ -1,4 +1,5 @@
 import User from '../models/User.js';
+import Progress from '../models/Progress.js';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import process from 'node:process';
@@ -521,5 +522,99 @@ export const disconnectAnilist = async (req, res) => {
     res.json({ success: true, message: 'AniList disconnected successfully' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Sync AniList Library (Import Watching list)
+export const syncAnilistLibrary = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    if (!user?.anilist?.accessToken) {
+      return res.status(400).json({ success: false, message: 'AniList account not connected' });
+    }
+
+    // 1. Fetch Watching list from AniList
+    const response = await axios.post('https://graphql.anilist.co', {
+      query: `
+        query ($userId: Int) {
+          MediaListCollection (userId: $userId, type: ANIME, status: CURRENT) {
+            lists {
+              entries {
+                progress
+                media {
+                  id
+                  title {
+                    english
+                    romaji
+                    native
+                  }
+                  coverImage {
+                    extraLarge
+                    large
+                  }
+                }
+              }
+            }
+          }
+        }
+      `,
+      variables: {
+        userId: parseInt(user.anilist.id)
+      }
+    }, {
+      headers: {
+        Authorization: `Bearer ${user.anilist.accessToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      }
+    });
+
+    if (!response.data?.data?.MediaListCollection) {
+      console.log(`[Sync] No MediaListCollection found for user ${user.username}`);
+      return res.json({ success: true, message: 'No active watching list found on AniList.', count: 0 });
+    }
+
+    const entries = response.data.data.MediaListCollection.lists.flatMap(list => list.entries || []);
+    console.log(`[Sync] Found ${entries.length} entries for user ${user.username}`);
+    let syncedCount = 0;
+
+    // 2. Map and Save to Progress Collection
+    for (const entry of entries) {
+      const { media, progress } = entry;
+      const animeId = String(media.id);
+      
+      try {
+        // Upsert into local Progress
+        await Progress.findOneAndUpdate(
+          { user: user._id, animeId },
+          {
+            episode: progress || 1,
+            currentTime: 0, // Start at 0 if importing
+            duration: 0,
+            title: media.title.english || media.title.romaji || media.title.native,
+            coverImage: media.coverImage.extraLarge || media.coverImage.large,
+            updatedAt: Date.now()
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+      } catch (err) {
+        console.error(`[Sync] Failed to save anime ${animeId}:`, err.message);
+      }
+      syncedCount++;
+    }
+    console.log(`[Sync] Successfully processed ${syncedCount} items.`);
+
+    res.json({
+      success: true,
+      message: `Successfully synced ${syncedCount} anime from your AniList library.`,
+      count: syncedCount
+    });
+
+  } catch (error) {
+    console.error("SYNC ANILIST ERROR:", error.response?.data || error.message);
+    res.status(500).json({ 
+      success: false, 
+      message: error.response?.data?.errors?.[0]?.message || 'Failed to sync with AniList' 
+    });
   }
 };

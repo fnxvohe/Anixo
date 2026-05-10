@@ -46,3 +46,8 @@ export const disconnectAnilist = async () => {
   const { data } = await backendApi.post("/auth/anilist/disconnect");
   return data;
 };
+
+export const syncAnilist = async () => {
+  const { data } = await backendApi.post("/auth/anilist/sync");
+  return data;
+};

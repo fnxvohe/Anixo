@@ -6,7 +6,8 @@ import AnimeCard from "../components/common/AnimeCard";
 import Pagination from "../components/common/Pagination";
 import { useAuth } from "../hooks/useAuth";
 import { removeProgress, getProgress } from "../services/progressService";
-import { User, Clock, Heart, Bell, Download, Settings as SettingsIcon, Trash2 } from "lucide-react";
+import { syncAnilist } from "../services/authService";
+import { User, Clock, Heart, Bell, Download, Settings as SettingsIcon, Trash2, RefreshCw } from "lucide-react";
 
 export default function ContinueWatching() {
   const { user, globalProgress, setGlobalProgress } = useAuth();
@@ -14,6 +15,7 @@ export default function ContinueWatching() {
   const location = useLocation();
 
   const [currentPage, setCurrentPage] = useState(1);
+  const [isSyncing, setIsSyncing] = useState(false);
   const itemsPerPage = 24;
 
   useEffect(() => {
@@ -38,6 +40,25 @@ export default function ContinueWatching() {
     const res = await removeProgress(animeId);
     if (res.success) {
       setGlobalProgress(prev => prev.filter(p => p.animeId !== animeId));
+    }
+  };
+
+  const handleSync = async () => {
+    if (isSyncing) return;
+    setIsSyncing(true);
+    try {
+      const res = await syncAnilist();
+      if (res.success) {
+        // Refresh local progress from backend after sync
+        const progressRes = await getProgress();
+        if (progressRes.success) {
+          setGlobalProgress(progressRes.continueWatching);
+        }
+      }
+    } catch (err) {
+      console.error("Sync error:", err);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -92,11 +113,29 @@ export default function ContinueWatching() {
         </div>
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-8 px-2">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8 px-2">
           <div className="flex items-center gap-3">
-            <h2 className="text-xl font-black tracking-tight uppercase">Continue Watching</h2>
-            <span className="text-[11px] font-black bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full text-white/40">{progressCards.length}</span>
+            <h2 className="text-lg md:text-xl font-black tracking-tight uppercase">Continue Watching</h2>
+            <span className="text-[10px] md:text-[11px] font-black bg-white/5 border border-white/5 px-2.5 py-0.5 rounded-full text-white/40">{progressCards.length}</span>
           </div>
+          
+          {user?.anilist?.username && (
+            <button 
+              onClick={handleSync}
+              disabled={isSyncing}
+              className={`flex items-center justify-center gap-2 px-4 py-2.5 md:py-2 rounded-xl border transition-all text-[10px] md:text-[11px] font-black uppercase tracking-wider w-full sm:w-auto ${
+                isSyncing 
+                ? 'bg-white/5 border-white/10 text-white/30 cursor-not-allowed' 
+                : 'bg-[#02A9FF]/10 border-[#02A9FF]/20 text-[#02A9FF] hover:bg-[#02A9FF] hover:text-white hover:border-[#02A9FF]'
+              }`}
+            >
+              <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+              <span>
+                <span className="inline sm:hidden">{isSyncing ? 'Syncing...' : 'Sync'}</span>
+                <span className="hidden sm:inline">{isSyncing ? 'Syncing Library...' : 'AniList Sync'}</span>
+              </span>
+            </button>
+          )}
         </div>
 
         {/* Grid */}
@@ -147,9 +186,21 @@ export default function ContinueWatching() {
             <p className="text-white/30 mb-8 text-[13px] max-w-xs text-center leading-relaxed">
               Start watching an anime and we'll keep track of your progress here!
             </p>
-            <Link to="/browse" className="bg-white text-black font-black py-3 px-8 rounded-xl text-[11px] uppercase tracking-[0.2em] transition-all hover:scale-105">
-              Explore Anime
-            </Link>
+            <div className="flex flex-col sm:flex-row gap-4 items-center">
+              <Link to="/browse" className="bg-white text-black font-black py-3 px-8 rounded-xl text-[11px] uppercase tracking-[0.2em] transition-all hover:scale-105">
+                Explore Anime
+              </Link>
+              {user?.anilist?.username && (
+                <button 
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className="bg-red-600 text-white font-black py-3 px-8 rounded-xl text-[11px] uppercase tracking-[0.2em] transition-all hover:scale-105 flex items-center gap-2"
+                >
+                  <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+                  {isSyncing ? 'Syncing Library...' : 'Sync from AniList'}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
