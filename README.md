@@ -2,6 +2,10 @@
   <img src="public/logo.png" alt="AniXo Logo" width="200" />
 </p>
 
+
+Use Latest Tepo on /porkupine-git
+
+
 # <p align="center">🎌 AniXo - The Next-Gen Anime Experience 🎌</p>
 
 <p align="center">
