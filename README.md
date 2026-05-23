@@ -262,5 +262,5 @@ We welcome contributions! Please fork the repo, create a feature branch, and sub
 
 <p align="center">
   Developed with ❤️ for the Anime Community.<br>
-  <i>For educational purposes only. Built by the AniXo Team.</i>
+  <i>For educational and Private purposes only. Built by the AniXo Team.</i>
 </p>
